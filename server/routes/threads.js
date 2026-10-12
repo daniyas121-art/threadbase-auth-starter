@@ -1,5 +1,6 @@
 import { Router } from "express";
 import prisma from "../prisma/client.js";
+import verifyToken from "../middleware/verifyToken.js";
 
 const router = Router();
 
@@ -31,21 +32,18 @@ router.get("/", async (req, res, next) => {
 });
 
 // -------------------------------------------------------------
-//  WRITE routes below.
-//  RIGHT NOW THEY ARE UNPROTECTED — anyone can create, edit,
-//  and delete threads. Your assignment is to guard these three
-//  with the verifyToken middleware (GET above stays public).
+//  WRITE routes below are protected; the public GET route remains unguarded.
 // -------------------------------------------------------------
 
 // POST /api/threads
-router.post("/", async (req, res, next) => {
+router.post("/", verifyToken, async (req, res, next) => {
   try {
-    const { title, body, authorId } = req.body ?? {};
+    const { title, body } = req.body ?? {};
     if (!title || !body) {
       return res.status(400).json({ error: "title and body are required" });
     }
     const thread = await prisma.thread.create({
-      data: { title, body, authorId: authorId ?? null },
+      data: { title, body, authorId: req.user.userId },
     });
     res.status(201).json(thread);
   } catch (error) {
@@ -54,7 +52,7 @@ router.post("/", async (req, res, next) => {
 });
 
 // PUT /api/threads/:id
-router.put("/:id", async (req, res, next) => {
+router.put("/:id", verifyToken, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const { title, body } = req.body ?? {};
@@ -69,7 +67,7 @@ router.put("/:id", async (req, res, next) => {
 });
 
 // DELETE /api/threads/:id
-router.delete("/:id", async (req, res, next) => {
+router.delete("/:id", verifyToken, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     await prisma.thread.delete({ where: { id } });
